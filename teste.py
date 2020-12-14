@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 from itertools import chain
+from scipy import ndimage
+
 
 BRANCO = 255
 vizinhos = [[0,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1]]
@@ -209,7 +211,10 @@ def encontra_dimensoes(fronteira):
     return (x_maior-x_menor)+3 , (y_maior-y_menor)+3, x_menor, y_menor, x_maior, y_maior
 
 def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index):
-
+    #img_borda_binaria = np.zeros(img_borda.shape)
+    row, col, bpp = img_borda.shape
+    img_borda_binaria = np.zeros((row, col))
+    
     for pixel in fronteira:
         nova_coordenada_x = (int(pixel[0])-menor_x)+1
         nova_coordenada_y = (int(pixel[1])-menor_y)+1
@@ -218,8 +223,19 @@ def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index):
         img_borda[nova_coordenada_x][nova_coordenada_y][1] = 0
         img_borda[nova_coordenada_x][nova_coordenada_y][2] = 0
 
+        #criando imagem binaria
+        img_borda_binaria[nova_coordenada_x][nova_coordenada_y] = 1
+
     nome_imagem = 'Borda' + str(index) + ".png"
-    cv2.imwrite(nome_imagem, img_borda)   
+    cv2.imwrite(nome_imagem, img_borda)
+
+
+    img_borda_binaria = ndimage.binary_fill_holes(img_borda_binaria).astype(int)
+
+    #nome_imagem_binaria = 'BordaB' + str(index) + ".png"
+    #cv2.imwrite(nome_imagem_binaria, img_borda_binaria*255)
+
+    return img_borda_binaria   
 
 
 def getColor(pixel, imagem_original, pos_x, pos_y):
@@ -231,52 +247,22 @@ def getColor(pixel, imagem_original, pos_x, pos_y):
 
     return imagem_original[pos_x,pos_y], pos_x, pos_y
 
-def encontra_pixel(fronteira, encontrou_borda, img, pixel, col):
-    x = pixel[0]
-    y = pixel[1]
 
-    #se encontrar um ponto na fronteira pegar a 
-    #cor indicar que entro na imagem encontrou_borda = true            
-    if boolPontoNaBorda((x,y), fronteira):
-        encontrou_borda = True
-        #caso ele seja a borda de saída
-        if img[x, y+1] >= BRANCO:
-            encontrou_borda = False
-            x += 1
-            y = 0
-            while(boolPontoNaBorda((x,y), fronteira) == False):
-                y += 1
-                if(y>col):
-                    return (0,0), False, encontrou_borda         
-        if encontrou_borda:
-            y += 1
 
-        return (x,y), True, encontrou_borda
-    
-    elif encontrou_borda and boolPontoNaBorda((x,y), fronteira) == False:
-        y += 1
-        return (x,y), True, encontrou_borda
-    
-        
-    return (0,0), False, encontrou_borda
+def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y):
+    row, col, bpp = np.shape(imagem_branca)
 
-def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, fronteira, menor_x, menor_y, maior_x, maior_y, index):
-    #criar uma lista de pontos das coordenadas das cores
-    print("função de criar imagem única colorida")
-    encontrou_borda = False
-    row, col = img.shape        
-    pos_x = 0
-    pos_y = 0
-    esta_pintando = True
-    pixel = fronteira[0]
-    while(esta_pintando):
-        cor_RGB, pos_x, pos_y = getColor(pixel, imagem_original, pos_x, pos_y)
-        nova_coordenada_x = (int(pixel[0])-menor_x)+1
-        nova_coordenada_y = (int(pixel[1])-menor_y)+1
-        imagem_branca[nova_coordenada_x][nova_coordenada_y][0] = cor_RGB[0]
-        imagem_branca[nova_coordenada_x][nova_coordenada_y][1] = cor_RGB[1]
-        imagem_branca[nova_coordenada_x][nova_coordenada_y][2] = cor_RGB[2]
-        pixel, esta_pintando, encontrou_borda = encontra_pixel(fronteira, encontrou_borda, img, pixel, col)
+    for i in range(row):
+        for j in range(col):
+            if img_borda_binaria[i][j] == 1:
+                nova_coordenada_x = i+menor_x+1
+                nova_coordenada_y = j+menor_y+1
+
+                imagem_branca[i][j][0] = imagem_original[nova_coordenada_x][nova_coordenada_y][0]
+                imagem_branca[i][j][1] = imagem_original[nova_coordenada_x][nova_coordenada_y][1]
+                imagem_branca[i][j][2] = imagem_original[nova_coordenada_x][nova_coordenada_y][2]
+
+
 
     nome_imagem = 'ImagemColorida' + str(index) + ".png"
     print("Salvou a imagem: ", index)
@@ -295,10 +281,10 @@ def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original):
         imagem_branca = np.ones((row, col, 3)) * 255
         cv2.imwrite("Branco.png", imagem_branca)   
         
-        #criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index)
+        img_borda_binaria = criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index)
         
         #salvando a folha
-        criar_imagem_unica_folha_colorida(imagem_sem_ruido, imagem_original, imagem_branca, fronteira, menor_x, menor_y, maior_x, maior_y, index)
+        criar_imagem_unica_folha_colorida(imagem_sem_ruido, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y)
         index += 1 
 
 
