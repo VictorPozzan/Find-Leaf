@@ -155,21 +155,26 @@ def init():
     first_no_white_pixel = find_no_white(img)
     next_pixel = first_no_white_pixel
     i=0
-    #while(next_pixel!=0): 
-    while(i<18): 
+    while(next_pixel!=0): 
         try:
             print("iteracao: ", i)
             is_fronteira, fronteira = seguidorDeFronteira(img, next_pixel, i)
+            tamanho_fronteira = len(fronteira)
             
             if is_fronteira:
                 listaDeFronteiras.append(fronteira)
             
             last_pixel = next_pixel
             next_pixel =  find_next_point(img, last_pixel, listaDeFronteiras)
-            print("tamanho da fronteira: ",len(fronteira))
+            print("tamanho da fronteira: ", tamanho_fronteira)
         except Exception as e:
             print(e)
         i+=1
+
+    #este tratamento funciona devido a imagem 13 qual o background não é totalmente branco
+    for front in listaDeFronteiras:
+        if len(front) > 19000:
+            listaDeFronteiras.remove(front)
 
     print("NUMERO DE FOLHAS ENCONTRADAS:")
     print(len(listaDeFronteiras))
@@ -177,18 +182,71 @@ def init():
     contour = np.zeros((imagem.shape)) #cria uma matriz do tamanho da imagem preenchida com zero
     for i in listaDeFronteiras:
         for pixel in range(len(i)):
-            contour[i[pixel][0]][i[pixel][1]] = [0,0,255]
+            contour[i[pixel][0]][i[pixel][1]] = [255,255,255]
     
+
     #cv2.imshow('Image', imagem)
     #cv2.imshow('Image_contour', contour)
     cv2.imwrite("saida.png", contour)   
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-#Colocar linhas laterais brancas
+    return listaDeFronteiras
+
+def encontra_dimensoes(fronteira):
+    x = 0
+    y = 1
+
+    list_y = [cord_y[y] for cord_y in fronteira]
+    list_x = [cord_x[x] for cord_x in fronteira]
+
+    x_menor = list_x[0] #pega a primeira posicao
+    x_maior = max(list_x)
+    y_menor = min(list_y) 
+    y_maior = max(list_y)
+
+    return (x_maior-x_menor)+3 , (y_maior-y_menor)+3, x_menor, y_menor
+
+def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index):
+
+    for pixel in fronteira:
+        nova_coordenada_x = (int(pixel[0])-menor_x)+1
+        nova_coordenada_y = (int(pixel[1])-menor_y)+1
+
+        img_borda[nova_coordenada_x][nova_coordenada_y][0] = 0
+        img_borda[nova_coordenada_x][nova_coordenada_y][1] = 0
+        img_borda[nova_coordenada_x][nova_coordenada_y][2] = 0
+
+    nome_imagem = 'Borda' + str(index) + ".png"
+    cv2.imwrite(nome_imagem, img_borda)   
+
+
+def recorta_imagem(lista_fronteiras):
+
+    print("FUNÇÃO DE RECORTAR IMAGEM")
+    index = 0
+    for fronteira in lista_fronteiras:
+        row, col, menor_x, menor_y = encontra_dimensoes(fronteira)#encontar a largura e a altura 
+        
+        #salavando a borda
+        imagem_branca = np.ones((row, col, 3)) * 255
+        cv2.imwrite("Branco.png", imagem_branca)   
+
+        criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index)
+        index += 1 
+
+
 def main():
     print("Bem Vindo ao Trabalho de Processamento de Imagens")
-    init()
+    lista_fronteiras = []
+    #while(processar todas as imagens da pasta Folhas)
+    lista_fronteiras = init() #encontrar as bordas
+    recorta_imagem(lista_fronteiras) # recortar as folhas e salvar em disco (salvar a borda e a folha original)
+    #analise_textura() #
+
+    #criar_planilha() # salvar os dados 
+    
+    
 
 if __name__ == "__main__":
     main()
