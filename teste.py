@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 from itertools import chain
 from scipy import ndimage
-
+import re
 
 BRANCO = 255
 vizinhos = [[0,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1]]
@@ -210,7 +210,8 @@ def encontra_dimensoes(fronteira):
 
     return (x_maior-x_menor)+3 , (y_maior-y_menor)+3, x_menor, y_menor, x_maior, y_maior
 
-def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index):
+
+def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index, name_img):
     #img_borda_binaria = np.zeros(img_borda.shape)
     row, col, bpp = img_borda.shape
     img_borda_binaria = np.zeros((row, col))
@@ -226,7 +227,7 @@ def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index):
         #criando imagem binaria
         img_borda_binaria[nova_coordenada_x][nova_coordenada_y] = 1
 
-    nome_imagem = 'Borda' + str(index) + ".png"
+    nome_imagem = name_img + '-' + str(index) +"-P"+ ".png"
     cv2.imwrite(nome_imagem, img_borda)
 
 
@@ -249,7 +250,7 @@ def getColor(pixel, imagem_original, pos_x, pos_y):
 
 
 
-def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y):
+def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y, name_img):
     row, col, bpp = np.shape(imagem_branca)
 
     for i in range(row):
@@ -264,16 +265,16 @@ def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, front
 
 
 
-    nome_imagem = 'ImagemColorida' + str(index) + ".png"
-    print("Salvou a imagem: ", index)
-    cv2.imwrite(nome_imagem, imagem_branca)   
+    nome_imagem = name_img + '-' + str(index) + ".png"
+    cv2.imwrite(nome_imagem, imagem_branca)
+
+    return imagem_branca   
             
 
 
-def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original):
+def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original, name_img):
     
-    print("FUNÇÃO DE RECORTAR IMAGEM")
-    index = 0
+    index = 1
     for fronteira in lista_fronteiras:
         row, col, menor_x, menor_y, maior_x, maior_y = encontra_dimensoes(fronteira)#encontar a largura e a altura 
         
@@ -281,24 +282,69 @@ def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original):
         imagem_branca = np.ones((row, col, 3)) * 255
         cv2.imwrite("Branco.png", imagem_branca)   
         
-        img_borda_binaria = criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index)
+        img_borda_binaria = criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index, name_img)
         
         #salvando a folha
-        criar_imagem_unica_folha_colorida(imagem_sem_ruido, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y)
+        criar_imagem_unica_folha_colorida(imagem_sem_ruido, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y, name_img)
         index += 1 
+    
 
+def obter_histograma(imagem):
+    row, col, bpp =  np.shape(imagem)
+    histograma = {}
+
+    for i in range(row):
+        for j in range(col):
+            cor = tuple(imagem[i][j].tolist())
+            if np.mean(imagem[i][j]) != BRANCO:
+                if cor in histograma.keys(): 
+                    histograma[cor] +=1                 
+                else:    
+                    histograma[cor] = 1
+    
+    print(histograma)
+
+def analise_textura():
+    name_img = 'teste-histograma.png'
+    imagem = cv2.imread(name_img)
+    
+    obter_histograma(imagem)
+
+def pegar_nome(img_number):
+    name_img = 'Folhas/Teste'
+    if(img_number < 10):
+        name_img = name_img + '0' 
+    name_img = name_img + str(img_number) + '.png'
+    imagem = cv2.imread(name_img)
+    name_img = name_img.split(".")[0]
+
+    return imagem, name_img
 
 def main():
-    imagem = cv2.imread('Folhas/Teste10.png')
-    #imagem = cv2.imread('teste-separar.png')
-    img_sem_ruido = remove_ruidos(imagem)
+    
     print("Bem Vindo ao Trabalho de Processamento de Imagens")
-    lista_fronteiras = []
-    #while(processar todas as imagens da pasta Folhas)
-    lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
-    recorta_imagem(lista_fronteiras, img_sem_ruido, imagem) # recortar as folhas e salvar em disco (salvar a borda e a folha original)
-    #analise_textura() #
+    
+    processando = True
+    img_number = 1
+    while(img_number<=2): #arrumar este while não ESQUECER
 
+        #imagem, name_img = pegar_nome(img_number)
+        name_img = 'teste-separar.png'
+        imagem = cv2.imread(name_img)
+        name_img = 'teste-separar'
+
+        img_sem_ruido = remove_ruidos(imagem)        
+        lista_fronteiras = []
+        lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
+        recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
+            #while():
+        analise_textura() #media, variancia, uniformidade, entropia
+        
+        img_number += 1
+    
+    
+    
+    #deixar a berta a planilha desde o começo e ir salveando conforme as funções
     #criar_planilha() # salvar os dados 
     
     
