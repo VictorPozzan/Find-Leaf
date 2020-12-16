@@ -5,6 +5,9 @@ from itertools import chain
 from scipy import ndimage
 import re
 import math
+import pandas
+import csv
+
 
 BRANCO = 255
 vizinhos = [[0,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1]]
@@ -93,7 +96,9 @@ def seguidorDeFronteira(img, first_pixel, i):
                 #if boolPontoNaBorda(check, fronteira): #encontrou o primeiro pronto da lista de fronteira
                 if (first_pixel == check):
                     find_init_border = False
-                fronteira.append((b_0[x],b_0[y]))
+                    break
+                else:    
+                    fronteira.append((b_0[x],b_0[y]))
                 c_0 = [anterior_b0[x]-b_0[x], anterior_b0[y]-b_0[y]]
                 contador_de_vizinhos = 0
                 contador+=1
@@ -330,8 +335,8 @@ def obter_histograma(imagem):
     return histograma 
 
 #função que retorna a media, variancia, uniformidade, entropia de cada folha
-def analise_textura():
-    name_img = 'teste-histograma.png'
+def analise_textura(name_img, img_number):
+    name_img = name_img + '-' + str(img_number) + ".png"
     imagem = cv2.imread(name_img)
 
     histograma = obter_histograma(imagem)
@@ -347,8 +352,6 @@ def analise_textura():
         entropia += (probabilidade[j] * np.log2(probabilidade[j])) * -1
         j += 1
     
-    print(m, media, variancia, uniformidade, entropia)
-    print("Terminou a analise")
     #media, variancia = media_e_variancia(m, histograma, lista_probabilidade)
     #uniformidade = uniformidade_histograma(histograma, lista_probabilidade)
     #entropia = entropia_img(histograma, lista_probabilidade)
@@ -369,33 +372,53 @@ def pegar_nome(img_number):
 
     return imagem, name_img
 
+def criar_planilha():
+    planilha = csv.writer(open("SAIDAS.csv", "w"))
+    planilha.writerow(["ID imagem", "ID folha", "Media", "Variancia", "Uniformidade", "Entropia", "Perimetro"])
+
+    return planilha
+
+def incrementar_planilha(planilha, id_img, id_folha, media, variancia, uniformidade, entropia, perimetro):
+    id_img =  id_img.removeprefix('Folhas/')
+    planilha.writerow([id_img, id_folha, media, variancia, uniformidade, entropia, perimetro])
+
 def main():
     
     print("Bem Vindo ao Trabalho de Processamento de Imagens")
     
     processando = True
     img_number = 1
+
+    planilha = criar_planilha()    
     while(img_number<=2): #arrumar este while não ESQUECER
 
-        #imagem, name_img = pegar_nome(img_number)
-        name_img = 'teste-separar.png'
-        imagem = cv2.imread(name_img)
-        name_img = 'teste-separar'
+        imagem, name_img = pegar_nome(img_number)
+        #name_img = 'teste-separar.png'
+        #imagem = cv2.imread(name_img)
+        #name_img = 'teste-separar'
 
         img_sem_ruido = remove_ruidos(imagem)        
         lista_fronteiras = []
         lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
         recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
-            #while():
-        analise_textura() #media, variancia, uniformidade, entropia
         
+        index_sub_folha =  1
+        while True:
+            try: 
+                media, variancia, uniformidade, entropia = analise_textura(name_img, index_sub_folha)
+                perimetro = len(lista_fronteiras[index_sub_folha-1])  
+                incrementar_planilha(planilha, name_img, index_sub_folha, media, variancia, uniformidade, entropia, perimetro)
+                index_sub_folha += 1
+            except:
+                print("Fim da análise de textura para todas as folhas encontradas no arquivo: ", name_img)
+                break   
         img_number += 1
     
     
     
     #deixar a berta a planilha desde o começo e ir salveando conforme as funções
     #criar_planilha() # salvar os dados 
-    
+    print("Finalmente acabou :) EBAA!")
     
 
 if __name__ == "__main__":
