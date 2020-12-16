@@ -66,7 +66,6 @@ def obterVizinhoID(x, y):
 
 def seguidorDeFronteira(img, first_pixel, i):
     row, col = img.shape        
-    print(i)
     fronteira=[]
     fronteira.append(first_pixel)
     x = 0
@@ -166,7 +165,6 @@ def init(img):
     i=0
     while(next_pixel!=0): 
         try:
-            print("iteracao: ", i)
             is_fronteira, fronteira = seguidorDeFronteira(img, next_pixel, i)
             tamanho_fronteira = len(fronteira)
             
@@ -175,7 +173,6 @@ def init(img):
             
             last_pixel = next_pixel
             next_pixel =  find_next_point(img, last_pixel, listaDeFronteiras)
-            print("tamanho da fronteira: ", tamanho_fronteira)
         except Exception as e:
             print(e)
         i+=1
@@ -384,41 +381,35 @@ def incrementar_planilha(planilha, id_img, id_folha, media, variancia, uniformid
 
 def main():
     
-    print("Bem Vindo ao Trabalho de Processamento de Imagens")
+    print("Bem Vindo ao Trabalho de BIDI")
     
-    processando = True
     img_number = 1
-
     planilha = criar_planilha()    
-    while(img_number<=2): #arrumar este while não ESQUECER
+    
+    
+    while(True): #arrumar este while não ESQUECER
+        try:
+            imagem, name_img = pegar_nome(img_number)
+            img_sem_ruido = remove_ruidos(imagem)        
+            lista_fronteiras = []
+            lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
+            recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
+            
+            index_sub_folha =  1
+            while True:
+                try: 
+                    media, variancia, uniformidade, entropia = analise_textura(name_img, index_sub_folha)
+                    perimetro = len(lista_fronteiras[index_sub_folha-1])  
+                    incrementar_planilha(planilha, name_img, index_sub_folha, media, variancia, uniformidade, entropia, perimetro)
+                    index_sub_folha += 1
+                except:
+                    print("Fim da análise de textura para todas as folhas encontradas no arquivo: ", name_img)
+                    break   
+            img_number += 1
+        except:
+            print("Finalmente acabou :) EBAA!")
+            break
 
-        imagem, name_img = pegar_nome(img_number)
-        #name_img = 'teste-separar.png'
-        #imagem = cv2.imread(name_img)
-        #name_img = 'teste-separar'
-
-        img_sem_ruido = remove_ruidos(imagem)        
-        lista_fronteiras = []
-        lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
-        recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
-        
-        index_sub_folha =  1
-        while True:
-            try: 
-                media, variancia, uniformidade, entropia = analise_textura(name_img, index_sub_folha)
-                perimetro = len(lista_fronteiras[index_sub_folha-1])  
-                incrementar_planilha(planilha, name_img, index_sub_folha, media, variancia, uniformidade, entropia, perimetro)
-                index_sub_folha += 1
-            except:
-                print("Fim da análise de textura para todas as folhas encontradas no arquivo: ", name_img)
-                break   
-        img_number += 1
-    
-    
-    
-    #deixar a berta a planilha desde o começo e ir salveando conforme as funções
-    #criar_planilha() # salvar os dados 
-    print("Finalmente acabou :) EBAA!")
     
 
 if __name__ == "__main__":
