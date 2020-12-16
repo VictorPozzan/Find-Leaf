@@ -4,6 +4,7 @@ import cv2
 from itertools import chain
 from scipy import ndimage
 import re
+import math
 
 BRANCO = 255
 vizinhos = [[0,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1]]
@@ -289,6 +290,30 @@ def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original, name_img
         index += 1 
     
 
+def valor_medio(histograma, lista_probabilidade):
+    medio = 0
+    j = 0
+    for i in histograma:
+        medio = medio + (histograma[i] * lista_probabilidade[j])
+        j += 1
+
+    return medio
+
+def pixeis_coloridos(histograma):
+    total = 0 
+    for i in histograma:
+        total += histograma[i]
+    return total
+
+def probabilidade_de_cada_cor(histograma):
+    lista_probabilidade = []
+    total_pixeis_coloridos = pixeis_coloridos(histograma)
+    for i in histograma:
+        probabilidade = histograma[i] / total_pixeis_coloridos
+        lista_probabilidade.append(probabilidade)  
+
+    return lista_probabilidade
+
 def obter_histograma(imagem):
     row, col, bpp =  np.shape(imagem)
     histograma = {}
@@ -302,13 +327,37 @@ def obter_histograma(imagem):
                 else:    
                     histograma[cor] = 1
     
-    print(histograma)
+    return histograma 
 
+#função que retorna a media, variancia, uniformidade, entropia de cada folha
 def analise_textura():
     name_img = 'teste-histograma.png'
     imagem = cv2.imread(name_img)
+
+    histograma = obter_histograma(imagem)
+    probabilidade = probabilidade_de_cada_cor(histograma)
+
+    m = valor_medio(histograma, probabilidade)
+    j = 0
+    media = variancia = uniformidade = entropia = 0 
+    for i in histograma:
+        media += (((histograma[i]-m)**1) * probabilidade[j])
+        variancia += (((histograma[i]-m)**2) * probabilidade[j])
+        uniformidade += (probabilidade[j] ** 2)# * histograma [i])
+        entropia += (probabilidade[j] * np.log2(probabilidade[j])) * -1
+        j += 1
     
-    obter_histograma(imagem)
+    print(m, media, variancia, uniformidade, entropia)
+    print("Terminou a analise")
+    #media, variancia = media_e_variancia(m, histograma, lista_probabilidade)
+    #uniformidade = uniformidade_histograma(histograma, lista_probabilidade)
+    #entropia = entropia_img(histograma, lista_probabilidade)
+    #z é a do cor do pixel
+    #m = valor medio de z
+    #p = probabilidade 
+    #z_i = é o pixel 
+    #m = quantidade de vezes que a cor ocorreu * probabilidade da cor
+    return media, variancia, uniformidade, entropia
 
 def pegar_nome(img_number):
     name_img = 'Folhas/Teste'
