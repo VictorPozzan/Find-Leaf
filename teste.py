@@ -122,23 +122,17 @@ def grayscale(img):
     vetor_pixels = []
     k=0
     row, col, bpp = np.shape(img)
+    img_gray = []
 
     for i in range(0,row):
         for j in range(0,col):
             b = int(img[i][j][0])
             g = int(img[i][j][1])
             r = int(img[i][j][2])
-            pixel = int((b+g+r) / 3)  
-            vetor_pixels.append(pixel)
-
-    for i in range(0,row):
-        for j in range(0,col):
-            img[i][j][0] = float(vetor_pixels[k])
-            img[i][j][1] = float(vetor_pixels[k])
-            img[i][j][2] = float(vetor_pixels[k])
-            k +=1 
-
-    return img
+            pixel = int((b+g+r) / 3)   
+            img_gray.append(pixel) 
+ 
+    return img_gray
 
 def remove_ruidos(imagem):
     img = imagem.astype('float')
@@ -293,13 +287,13 @@ def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original, name_img
     
 
 def valor_medio(histograma, lista_probabilidade):
-    medio = 0
+    media = 0
     j = 0
     for i in histograma:
-        medio = medio + (histograma[i] * lista_probabilidade[j])
+        media += i * lista_probabilidade[j]
         j += 1
 
-    return medio
+    return media
 
 def pixeis_coloridos(histograma):
     total = 0 
@@ -319,15 +313,14 @@ def probabilidade_de_cada_cor(histograma):
 def obter_histograma(imagem):
     row, col, bpp =  np.shape(imagem)
     histograma = {}
+    img_gray = grayscale(imagem)
 
-    for i in range(row):
-        for j in range(col):
-            cor = tuple(imagem[i][j].tolist())
-            if np.mean(imagem[i][j]) != BRANCO:
-                if cor in histograma.keys(): 
-                    histograma[cor] +=1                 
-                else:    
-                    histograma[cor] = 1
+    for cor in img_gray:
+        if cor != BRANCO:    
+            if cor in histograma.keys():
+                histograma[cor] += 1
+            else:  
+                histograma[cor] = 1
     
     return histograma 
 
@@ -339,13 +332,12 @@ def analise_textura(name_img, img_number):
     histograma = obter_histograma(imagem)
     probabilidade = probabilidade_de_cada_cor(histograma)
 
-    m = valor_medio(histograma, probabilidade)
+    media = valor_medio(histograma, probabilidade)
     j = 0
-    media = variancia = uniformidade = entropia = 0 
-    for i in histograma:
-        media += (((histograma[i]-m)**1) * probabilidade[j])
-        variancia += (((histograma[i]-m)**2) * probabilidade[j])
-        uniformidade += (probabilidade[j] ** 2)# * histograma [i])
+    variancia = uniformidade = entropia = 0 
+    for i in histograma:     
+        variancia += (((i-media)**2) * probabilidade[j])
+        uniformidade += (probabilidade[j] ** 2)
         entropia += (probabilidade[j] * np.log2(probabilidade[j])) * -1
         j += 1
     
@@ -381,23 +373,24 @@ def incrementar_planilha(planilha, id_img, id_folha, media, variancia, uniformid
 
 def main():
     
-    print("Bem Vindo ao Trabalho de BIDI")
+    print("Bem Vindo ao Trabalho de PID")
     
     img_number = 1
     planilha = criar_planilha()    
-    
     
     while(True): #arrumar este while não ESQUECER
         try:
             imagem, name_img = pegar_nome(img_number)
             img_sem_ruido = remove_ruidos(imagem)        
             lista_fronteiras = []
+            print("Encontrando todas as bordas de: ", name_img)
+            print("     Este processo pode demorar um ponto")
             lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
             recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
-            
+            print("Analisando a textura das folhas encontradas") 
             index_sub_folha =  1
             while True:
-                try: 
+                try:
                     media, variancia, uniformidade, entropia = analise_textura(name_img, index_sub_folha)
                     perimetro = len(lista_fronteiras[index_sub_folha-1])  
                     incrementar_planilha(planilha, name_img, index_sub_folha, media, variancia, uniformidade, entropia, perimetro)
@@ -407,10 +400,12 @@ def main():
                     break   
             img_number += 1
         except:
-            print("Finalmente acabou :) EBAA!")
+            print("Acabou :) EBAA!")
             break
 
     
 
 if __name__ == "__main__":
     main()
+
+#https://www.tutorialspoint.com/python/python_multithreading.htm
