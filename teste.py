@@ -1,23 +1,20 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
-from itertools import chain
 from scipy import ndimage
-import re
 import math
-import pandas
 import csv
-
 
 BRANCO = 255
 vizinhos = [[0,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1]]
 
+#verifica se o ponto pertence a uma fronteira
 def bool_nas_Fronteiras(ponto, listaDeFronteiras):
     for f in listaDeFronteiras:
         if boolPontoNaBorda(ponto, f):
             return True
     return False
 
+#retorna a posição de um pixel branco
 def encontrar_prox_branco(ponto, img):
     i, j = ponto
     row, col = img.shape
@@ -30,6 +27,7 @@ def encontrar_prox_branco(ponto, img):
         i+=1
     return (i-1,j)
 
+#retorna o proximo ponto diferente de branco e que não esta na lista de fronteiras
 def find_next_point(img, last_pixel, listaDeFronteiras):
     i, j = last_pixel
     row, col = img.shape
@@ -52,22 +50,25 @@ def find_next_point(img, last_pixel, listaDeFronteiras):
 def boolPontoNaBorda(ponto, fronteira):
     return ponto in fronteira #encontrou o primeiro pronto da lista de fronteira
 
+#encontra o primeiro pixel diferente de branco
 def find_no_white(img):
     row, col = img.shape        
     for i in range(row):
         for j in range(col):
             if img[i,j] < BRANCO:
-                return (i,j)
+                return (i,j)#retorna a posição do pixel
 
+#retorna a posição do array vizinhos
 def obterVizinhoID(x, y): 
     for i in range(9):
         if(x == vizinhos[i][0] and y == vizinhos[i][1]):
             return i            
 
+#a partir de um pixel inicial percorre a borda da folha
 def seguidorDeFronteira(img, first_pixel, i):
     row, col = img.shape        
     fronteira=[]
-    fronteira.append(first_pixel)
+    fronteira.append(first_pixel) # adiciona o primeiro pixel já na lista de fronteira
     x = 0
     y = 1 #intuito de deixar o código mais legível
     
@@ -91,13 +92,12 @@ def seguidorDeFronteira(img, first_pixel, i):
             if (img[proxVizinho[x]][proxVizinho[y]]<BRANCO) and cont==0: #verifica se o próximo vizinho é BRANCO
                 b_0 = [proxB_0[x], proxB_0[y]]                       
                 check = (b_0[x],b_0[y])    
-                #if boolPontoNaBorda(check, fronteira) and len(fronteira)>550: #encontrou o primeiro pronto da lista de fronteira
-                #if boolPontoNaBorda(check, fronteira): #encontrou o primeiro pronto da lista de fronteira
-                if (first_pixel == check):
+
+                if (first_pixel == check): # quando encontrar o primeiro pixel novamente acaba o seguidor de fronteira
                     find_init_border = False
                     break
                 else:    
-                    fronteira.append((b_0[x],b_0[y]))
+                    fronteira.append((b_0[x],b_0[y])) # adiciona na lista de fronteiras
                 c_0 = [anterior_b0[x]-b_0[x], anterior_b0[y]-b_0[y]]
                 contador_de_vizinhos = 0
                 contador+=1
@@ -110,17 +110,15 @@ def seguidorDeFronteira(img, first_pixel, i):
             cont = 0
             anterior_b0 = [proxB_0[x], proxB_0[y]]
       
-            indexVizinho += 1 
+            indexVizinho += 1 #incrementa o vizinho
     
     tamanho = len(fronteira)
-    if tamanho>50 and tamanho<25000:
+    if tamanho>50 and tamanho<25000: #tratamento da imagem 13 
         return True, fronteira
 
     return False, (0,0)
 
 def grayscale(img):
-    vetor_pixels = []
-    k=0
     row, col, bpp = np.shape(img)
     img_gray = []
 
@@ -138,20 +136,16 @@ def remove_ruidos(imagem):
     img = imagem.astype('float')
     img = img[:,:,0] # convert to 2D array
  
-    gray_img = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-    #gray_img = grayscale(imagem);
+    gray_img = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY) #converte para tom de cinza
     
-    _,img = cv2.threshold(gray_img, 225,255, cv2.THRESH_BINARY)
-    img = cv2.medianBlur(img, 5)
-    
-    cv2.imwrite("saida1.png", gray_img)   
-    cv2.imwrite("saida2.png", img)
+    _,img = cv2.threshold(gray_img, 225,255, cv2.THRESH_BINARY) #converte para binario
+    img = cv2.medianBlur(img, 5) # remove o ruido 
 
     return img   
 
+#inicio do algoritmo seguidor de fronteiras
 def init(img):
-    #avg = np.mean(imagem,axis=-1)
-    
+  
     listaDeFronteiras=[]
 
     first_no_white_pixel = find_no_white(img)
@@ -160,9 +154,8 @@ def init(img):
     while(next_pixel!=0): 
         try:
             is_fronteira, fronteira = seguidorDeFronteira(img, next_pixel, i)
-            tamanho_fronteira = len(fronteira)
             
-            if is_fronteira:
+            if is_fronteira: #caso seja uma fronteira valida
                 listaDeFronteiras.append(fronteira)
             
             last_pixel = next_pixel
@@ -171,7 +164,7 @@ def init(img):
             print(e)
         i+=1
 
-    #este tratamento funciona devido a imagem 13 qual o background não é totalmente branco
+    #este tratamento funciona devido a imagem 13 
     for front in listaDeFronteiras:
         if len(front) > 19000:
             listaDeFronteiras.remove(front)
@@ -179,20 +172,9 @@ def init(img):
     print("NUMERO DE FOLHAS ENCONTRADAS:")
     print(len(listaDeFronteiras))
 
-    #contour = np.zeros((imagem.shape)) #cria uma matriz do tamanho da imagem preenchida com zero
-    #for i in listaDeFronteiras:
-    #    for pixel in range(len(i)):
-    #        contour[i[pixel][0]][i[pixel][1]] = [255,255,255]
-    
-
-    #cv2.imshow('Image', imagem)
-    #cv2.imshow('Image_contour', contour)
-    #cv2.imwrite("saida.png", contour)   
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-
     return listaDeFronteiras
 
+#retorna a altura, largura, menor linha e menor coluna 
 def encontra_dimensoes(fronteira):
     x = 0
     y = 1
@@ -205,15 +187,15 @@ def encontra_dimensoes(fronteira):
     y_menor = min(list_y) 
     y_maior = max(list_y)
 
-    return (x_maior-x_menor)+3 , (y_maior-y_menor)+3, x_menor, y_menor, x_maior, y_maior
+    #+3 serve para adicionar uma borda branca
+    return (x_maior-x_menor)+3 , (y_maior-y_menor)+3, x_menor, y_menor
 
-
+#cria a imagem da fronteira e retorna uma imagem com a mascara
 def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index, name_img):
-    #img_borda_binaria = np.zeros(img_borda.shape)
     row, col, bpp = img_borda.shape
     img_borda_binaria = np.zeros((row, col))
     
-    for pixel in fronteira:
+    for pixel in fronteira: #transalada os pixeis
         nova_coordenada_x = (int(pixel[0])-menor_x)+1
         nova_coordenada_y = (int(pixel[1])-menor_y)+1
 
@@ -227,25 +209,10 @@ def criar_imagem_borda(img_borda, fronteira, menor_x, menor_y, index, name_img):
     nome_imagem = name_img + '-' + str(index) +"-P"+ ".png"
     cv2.imwrite(nome_imagem, img_borda)
 
-
     img_borda_binaria = ndimage.binary_fill_holes(img_borda_binaria).astype(int)
 
-    #nome_imagem_binaria = 'BordaB' + str(index) + ".png"
-    #cv2.imwrite(nome_imagem_binaria, img_borda_binaria*255)
 
     return img_borda_binaria   
-
-
-def getColor(pixel, imagem_original, pos_x, pos_y):
-    RGB = []
-    #pegar a posição do pixel na imagem
-    #posicao_do_pixel = posicao_pixel(imagem_original, pixel)
-    pos_x = pixel[0] + 1
-    pos_y = pixel[1] + 1 
-
-    return imagem_original[pos_x,pos_y], pos_x, pos_y
-
-
 
 def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y, name_img):
     row, col, bpp = np.shape(imagem_branca)
@@ -267,25 +234,20 @@ def criar_imagem_unica_folha_colorida(img, imagem_original, imagem_branca, front
 
     return imagem_branca   
             
-
-
 def recorta_imagem(lista_fronteiras, imagem_sem_ruido, imagem_original, name_img):
     
     index = 1
     for fronteira in lista_fronteiras:
-        row, col, menor_x, menor_y, maior_x, maior_y = encontra_dimensoes(fronteira)#encontar a largura e a altura 
+        row, col, menor_x, menor_y = encontra_dimensoes(fronteira)
         
         #salavando a borda
-        imagem_branca = np.ones((row, col, 3)) * 255
-        cv2.imwrite("Branco.png", imagem_branca)   
-        
+        imagem_branca = np.ones((row, col, 3)) * 255        
         img_borda_binaria = criar_imagem_borda(imagem_branca, fronteira, menor_x, menor_y, index, name_img)
         
         #salvando a folha
         criar_imagem_unica_folha_colorida(imagem_sem_ruido, imagem_original, imagem_branca, fronteira, img_borda_binaria, index, menor_x, menor_y, name_img)
         index += 1 
     
-
 def valor_medio(histograma, lista_probabilidade):
     media = 0
     j = 0
@@ -311,9 +273,8 @@ def probabilidade_de_cada_cor(histograma):
     return lista_probabilidade
 
 def obter_histograma(imagem):
-    row, col, bpp =  np.shape(imagem)
     histograma = {}
-    img_gray = grayscale(imagem)
+    img_gray = grayscale(imagem) #converte para tons de cinza arrendondando o valor 
 
     for cor in img_gray:
         if cor != BRANCO:    
@@ -341,16 +302,9 @@ def analise_textura(name_img, img_number):
         entropia += (probabilidade[j] * np.log2(probabilidade[j])) * -1
         j += 1
     
-    #media, variancia = media_e_variancia(m, histograma, lista_probabilidade)
-    #uniformidade = uniformidade_histograma(histograma, lista_probabilidade)
-    #entropia = entropia_img(histograma, lista_probabilidade)
-    #z é a do cor do pixel
-    #m = valor medio de z
-    #p = probabilidade 
-    #z_i = é o pixel 
-    #m = quantidade de vezes que a cor ocorreu * probabilidade da cor
     return media, variancia, uniformidade, entropia
 
+#realiza o tratamento do nome da imagem 1 -> Teste01 retorna o nome e a imagem do disco
 def pegar_nome(img_number):
     name_img = 'Folhas/Teste'
     if(img_number < 10):
@@ -361,16 +315,19 @@ def pegar_nome(img_number):
 
     return imagem, name_img
 
+#cria a planilha .csv e adiciona os cabeçalhos
 def criar_planilha():
     planilha = csv.writer(open("SAIDAS.csv", "w"))
     planilha.writerow(["ID imagem", "ID folha", "Media", "Variancia", "Uniformidade", "Entropia", "Perimetro"])
 
     return planilha
 
+#escreve na planilha os dados obtidos de cada folha
 def incrementar_planilha(planilha, id_img, id_folha, media, variancia, uniformidade, entropia, perimetro):
     id_img =  id_img.removeprefix('Folhas/')
     planilha.writerow([id_img, id_folha, media, variancia, uniformidade, entropia, perimetro])
 
+#função principal do código qual chama as funções de execução
 def main():
     
     print("Bem Vindo ao Trabalho de PID")
@@ -378,13 +335,13 @@ def main():
     img_number = 1
     planilha = criar_planilha()    
     
-    while(True): #arrumar este while não ESQUECER
+    while(True): 
         try:
             imagem, name_img = pegar_nome(img_number)
             img_sem_ruido = remove_ruidos(imagem)        
             lista_fronteiras = []
             print("Encontrando todas as bordas de: ", name_img)
-            print("     Este processo pode demorar um ponto")
+            print("     Este processo pode demorar um pouco")
             lista_fronteiras = init(img_sem_ruido) #encontrar as bordas
             recorta_imagem(lista_fronteiras, img_sem_ruido, imagem, name_img) # recortar as folhas e salvar em disco (salvar a borda e a folha colorida)
             print("Analisando a textura das folhas encontradas") 
@@ -403,9 +360,6 @@ def main():
             print("Acabou :) EBAA!")
             break
 
-    
-
 if __name__ == "__main__":
     main()
 
-#https://www.tutorialspoint.com/python/python_multithreading.htm
